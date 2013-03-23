@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="com.google.appengine.eclipse.core.GAE_CONTAINER"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/jax-rs"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/jaxb"/>
+	<classpathentry kind="lib" path="E:/Prajakta/MS 3 sem/mobiles/projectl2w/New Trial using jaxb jax-rs/genson-0.92.jar"/>
+	<classpathentry kind="output" path="war/WEB-INF/classes"/>
+</classpath>
