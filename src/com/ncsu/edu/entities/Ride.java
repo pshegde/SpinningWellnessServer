@@ -1,4 +1,4 @@
-package com.ncsu.edu;
+package com.ncsu.edu.entities;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
