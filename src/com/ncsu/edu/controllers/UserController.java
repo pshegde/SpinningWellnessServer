@@ -14,6 +14,9 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.Entity;
 import com.ncsu.edu.entities.Ride;
 import com.ncsu.edu.entities.User;
 import com.ncsu.edu.entities.UserActivity;
@@ -40,6 +43,14 @@ public class UserController {
 	@Produces(MediaType.TEXT_PLAIN)
 	@Path("/createuser") 
 	public String  createUser(User user){
+		
+		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+
+		Entity dbUser = new Entity("User", user.getName());
+		dbUser.setProperty("id", user.getName());
+
+		ds.put(dbUser);
+
 		return "Success";
 	}
 
