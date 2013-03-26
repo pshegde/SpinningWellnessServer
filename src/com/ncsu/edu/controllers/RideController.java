@@ -24,6 +24,8 @@ import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.ncsu.edu.entities.Ride;
+import com.ncsu.edu.utils.RideUtils;
+import com.ncsu.edu.utils.UserUtils;
 
 @Path("/l2w/")
 public class RideController {
@@ -45,60 +47,120 @@ public class RideController {
 	 * 
 	 */
 
+	/**
+	 * Creates a ride in datastore.
+	 * Before creating the ride, a check is added to make sure that the ride with same id is not present in the datastore already.
+	 *
+	 * @param  	ride 	the ride object which is to be persisted in the datastore.
+	 * 
+	 * @return			a string stating the status of the operation either success or failure with appropriate message.
+	 */
 	@POST
 	@Produces(MediaType.TEXT_PLAIN)
 	@Path("/createride") 
 	public String createRide(Ride ride){
-		
-		//TODO: How to check for unique ID ??
 
-		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
-		
-		Entity dbRide = new Entity("Ride", ride.getId());
-		dbRide.setProperty("id", ride.getId());
-		dbRide.setProperty("name", ride.getName());
-		dbRide.setProperty("source", ride.getSource());
-		dbRide.setProperty("destination", ride.getDest());
-		dbRide.setProperty("creator", ride.getCreator());
-		dbRide.setProperty("startTime", ride.getStartTime());
+		Entity persistedRide = RideUtils.getSingleRide(ride.getId());
+		if(persistedRide != null) {
+			return "Failure: Duplicate ride id";
+		} else {
 
-		ds.put(dbRide);
+			Entity persistedUser = UserUtils.getSingleUser(ride.getCreator());
+			if(persistedUser != null) {			
+				DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
-		return "Success";
+				Entity dbRide = new Entity("Ride", ride.getId());
+				dbRide.setProperty("id", ride.getId());
+				dbRide.setProperty("name", ride.getName());
+				dbRide.setProperty("source", ride.getSource());
+				dbRide.setProperty("destination", ride.getDest());
+				dbRide.setProperty("creator", persistedUser.getKey());
+				dbRide.setProperty("startTime", ride.getStartTime());
+
+				ds.put(dbRide);
+
+				return "Success";
+			} else {
+				return "Failure: Creator does not exist";	
+			}
+		}
 	}
 
+	/**
+	 * Updates the ride given by the provided id.
+	 * Before updating the ride, a check is made to make sure that the ride actually exists in the datastore before updating its parameters.
+	 *
+	 * @param  	id  	id of the ride which is to be updated.
+	 * @param	ride	a new ride object which is to be used for replacing the old ride entity given by id.
+	 * @return			a string stating the status of the operation either success or failure with appropriate message.
+	 */
 	@POST
 	@Produces(MediaType.TEXT_PLAIN)
 	@Path("/updateride/{id}") 
 	public String updateRide(@PathParam("id") String id, Ride ride){
 
-		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
-		
-		Entity dbRide = new Entity("Ride", ride.getId());
-		dbRide.setProperty("id", ride.getId());
-		dbRide.setProperty("name", ride.getName());
-		dbRide.setProperty("source", ride.getSource());
-		dbRide.setProperty("destination", ride.getDest());
-		dbRide.setProperty("creator", ride.getCreator());
-		dbRide.setProperty("startTime", ride.getStartTime());
+		Entity persistedRide = RideUtils.getSingleRide(id);
+		if(persistedRide == null) {
+			return "Failure: Ride does not exist";
+		} else {
+			Entity persistedUser = UserUtils.getSingleUser(ride.getCreator());
+			if(persistedUser != null) {			
+				DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
-		ds.put(dbRide);
+				Entity dbRide = new Entity("Ride", id);
+				dbRide.setProperty("id", id);
+				dbRide.setProperty("name", ride.getName());
+				dbRide.setProperty("source", ride.getSource());
+				dbRide.setProperty("destination", ride.getDest());
+				dbRide.setProperty("creator", persistedUser.getKey());
+				dbRide.setProperty("startTime", ride.getStartTime());
 
-		return "Success";
+				ds.put(dbRide);
+
+				return "Success";
+			} else {
+				return "Failure: Invalid creator";	
+			}
+		}
 	}
 
+	/**
+	 * Deletes the ride from data store.
+	 * Before deleting the ride from database, the method deletes all the participants for the ride.
+	 *
+	 * @param  	id  	id of the ride which is to be deleted.
+	 * 
+	 * @return			a string stating the status of the operation either success or failure with appropriate message.
+	 */
 	@DELETE
 	@Path("/deleteride/{id}/")
 	public String deleteRide(@PathParam("id") String id) {
 
-		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+		Entity persistedRide = RideUtils.getSingleRide(id);
+		if(persistedRide == null) {
+			return "Failure: Invalid ride id";
+		} else {
 
-		Key rideKey = KeyFactory.createKey("Ride", id);
-		ds.delete(rideKey);
+			List<String> participants = RideUtils.getAllParticipantsByRideId(id);
+			for(String participant : participants) {
+				removeParticipantFromRide(id, participant);
+			}
 
-		return "Success";
+			DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+			Key rideKey = KeyFactory.createKey("Ride", id);
+			ds.delete(rideKey);
+
+			return "Success";
+		}
 	}
 
+	/**
+	 * Returns the ride from data store identified by id.
+	 *
+	 * @param  	id  		id of the ride which is to be returned.
+	 * 
+	 * @return				ride object from datastore identified by id.
+	 */
 	@GET
 	@Path("/viewride/{id}/")
 	public Ride viewRide(@PathParam("id") String id) {
@@ -122,6 +184,11 @@ public class RideController {
 		}
 	}
 
+	/**
+	 * Returns all the rides from datastore which have start time within last week.
+	 *
+	 * @return		a list of ride objects which have start time within last week.
+	 */
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/viewpastridesfromlastweek") 
@@ -130,6 +197,11 @@ public class RideController {
 		return list;
 	}
 
+	/**
+	 * Returns all the rides from datastore for which the start time is before current time.
+	 *
+	 * @return		a list of ride objects which have start time before current time.
+	 */
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/viewpastrides") 
@@ -165,6 +237,11 @@ public class RideController {
 		return rides;
 	}
 
+	/**
+	 * Returns all the rides from datastore which have start time within next week.
+	 *
+	 * @return		a list of ride objects which have start time within next week.
+	 */
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/viewupcomingridesfromnextweek") 
@@ -173,6 +250,11 @@ public class RideController {
 		return list;
 	}
 
+	/**
+	 * Returns all the rides from datastore for which the start time is after current time.
+	 *
+	 * @return		a list of ride objects which have start time after current time.
+	 */
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/viewupcomingrides") 
@@ -207,17 +289,85 @@ public class RideController {
 		return rides;
 	}
 
+	/**
+	 * Creates a participant entity for a given ride using the given user name.
+	 * A check is performed to make sure that the ride specified by given rideId and the user specified by given userName
+	 * exists in the database.
+	 * A check is performed to make sure that the same rideId, userName combination is not already registered as the participant. 
+	 * Before deleting the ride from database, the method deletes all the participants for the ride.
+	 *
+	 * @param  rideId  		id of the ride for which the participant is to be added.
+	 * @param  userName		name of the user which is to be added as participant.
+	 * 
+	 * @return		a string stating the status of the operation either success or failure with appropriate message.
+	 */
 	@POST
 	@Produces(MediaType.TEXT_PLAIN)
 	@Path("/addparticipanttoride/{id}/{name}") 
-	public String addParticipantToRide(@PathParam("id") String rideId, @PathParam("name") String name){
-		return "Success";
+	public String addParticipantToRide(@PathParam("id") String rideId, @PathParam("name") String userName){
+
+		Entity persistedRide = RideUtils.getSingleRide(rideId);
+		if(persistedRide != null) {
+			Entity persistedUser = UserUtils.getSingleUser(userName);
+			if(persistedUser != null) {
+
+				Key participantKey = RideUtils.getSingleParticipant(rideId, userName);
+				if(participantKey != null) {
+					return "Failure: Participant already exists";
+				} else {
+					DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+
+					Entity dbParticipant = new Entity("Participant");
+					dbParticipant.setProperty("rideId", rideId);
+					dbParticipant.setProperty("userName", userName);
+
+					ds.put(dbParticipant);
+
+					return "Success";
+				}
+			} else {
+				return "Failure: Invalid user name";
+			}
+		} else {
+			return "Failure: Invalid ride id";
+		}
 	}
 
+	/**
+	 * Removes the participant from the ride.
+	 * A check is performed to make sure tha the given particiapnt indicated by rideId and userName pair actually exists in the
+	 * database before deleting it.
+	 *
+	 * @param  rideId  		id of the ride of the participant to be deleted.
+	 * @param  userName  	userName of the participant to be deleted.
+	 * 
+	 * @return		a string stating the status of the operation either success or failure with appropriate message.
+	 */
 	@POST
 	@Produces(MediaType.TEXT_PLAIN)
 	@Path("/removeparticipanttoride/{id}/{name}") 
-	public String removeParticipantFromRide(@PathParam("id") String rideId, @PathParam("name") String name){
-		return "Success";
+	public String removeParticipantFromRide(@PathParam("id") String rideId, @PathParam("name") String userName){
+
+
+		Entity persistedRide = RideUtils.getSingleRide(rideId);
+		if(persistedRide != null) {
+			Entity persistedUser = UserUtils.getSingleUser(userName);
+			if(persistedUser != null) {
+
+				DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+
+				Entity dbParticipant = new Entity("Participant");
+				dbParticipant.setProperty("rideId", rideId);
+				dbParticipant.setProperty("userName", userName);
+
+				ds.put(dbParticipant);
+
+				return "Success";
+			} else {
+				return "Failure: Invalid user name";
+			}
+		} else {
+			return "Failure: Invalid ride id";
+		}
 	}
 }

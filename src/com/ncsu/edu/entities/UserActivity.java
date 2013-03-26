@@ -1,44 +1,48 @@
 package com.ncsu.edu.entities;
 
+import java.util.Date;
+
 import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
 public class UserActivity {
 	
-	String name;
-	String rideId;
+	String id;
+	String userName;
 	double distaceCovered;
 	double cadence;
 	double averageSpeed;
 	double caloriesBurned;
+	Date activityDate;
 	
 	public UserActivity() {}
 
-	public UserActivity(String name, String rideId, double distaceCovered,
-			double cadence, double averageSpeed, double caloriesBurned) {
+	public UserActivity(String id, String userName, double distaceCovered,
+			double cadence, double averageSpeed, double caloriesBurned, Date activityDate) {
 		super();
-		this.name = name;
-		this.rideId = rideId;
+		this.id = id;
+		this.userName = userName;
 		this.distaceCovered = distaceCovered;
 		this.cadence = cadence;
 		this.averageSpeed = averageSpeed;
 		this.caloriesBurned = caloriesBurned;
+		this.activityDate = activityDate;
 	}
 
-	public String getName() {
-		return name;
+	public String getId() {
+		return id;
 	}
 
-	public void setName(String name) {
-		this.name = name;
+	public void setRideId(String id) {
+		this.id = id;
 	}
 
-	public String getRideId() {
-		return rideId;
+	public String getUserName() {
+		return userName;
 	}
 
-	public void setRideId(String rideId) {
-		this.rideId = rideId;
+	public void setUserName(String userName) {
+		this.userName = userName;
 	}
 
 	public double getDistaceCovered() {
@@ -71,5 +75,13 @@ public class UserActivity {
 
 	public void setCaloriesBurned(double caloriesBurned) {
 		this.caloriesBurned = caloriesBurned;
+	}
+	
+	public Date getActivityDate() {
+		return activityDate;
+	}
+
+	public void setActivityDate(Date activityDate) {
+		this.activityDate = activityDate;
 	}
 }
