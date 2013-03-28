@@ -27,7 +27,7 @@ import com.ncsu.edu.entities.Ride;
 import com.ncsu.edu.utils.RideUtils;
 import com.ncsu.edu.utils.UserUtils;
 
-@Path("/l2w/")
+@Path("/l2wride/")
 public class RideController {
 
 	/*
@@ -47,6 +47,12 @@ public class RideController {
 	 * 
 	 */
 
+//	@GET
+//	@Produces(MediaType.TEXT_PLAIN)
+//	@Path("/myride") 
+//	public String myRide(){
+//		return "Prajakta";
+//	}
 	/**
 	 * Creates a ride in datastore.
 	 * Before creating the ride, a check is added to make sure that the ride with same id is not present in the datastore already.

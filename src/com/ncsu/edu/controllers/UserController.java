@@ -30,7 +30,7 @@ import com.ncsu.edu.entities.UserActivity;
 import com.ncsu.edu.utils.RideUtils;
 import com.ncsu.edu.utils.UserUtils;
 
-@Path("/l2w/")
+@Path("/l2wuser/")
 public class UserController {
 
 	/*
