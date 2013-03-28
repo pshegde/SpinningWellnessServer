@@ -1,4 +1,4 @@
-package com.ncsu.edu.controllers;
+package com.ncsu.edu.spinningwellness.controllers;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -29,12 +29,12 @@ import com.google.appengine.api.datastore.Query.CompositeFilterOperator;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.SortDirection;
-import com.ncsu.edu.entities.Ride;
-import com.ncsu.edu.entities.User;
-import com.ncsu.edu.entities.UserActivity;
-import com.ncsu.edu.utils.RideUtils;
-import com.ncsu.edu.utils.UserUtils;
-import com.ncsu.edu.utils.Utils;
+import com.ncsu.edu.spinningwellness.entities.Ride;
+import com.ncsu.edu.spinningwellness.entities.User;
+import com.ncsu.edu.spinningwellness.entities.UserActivity;
+import com.ncsu.edu.spinningwellness.utils.RideUtils;
+import com.ncsu.edu.spinningwellness.utils.UserUtils;
+import com.ncsu.edu.spinningwellness.utils.Utils;
 
 @Path("/l2wuser/")
 public class UserController {

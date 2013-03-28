@@ -1,4 +1,4 @@
-package com.ncsu.edu.entities;
+package com.ncsu.edu.spinningwellness.entities;
 
 import java.util.Date;
 

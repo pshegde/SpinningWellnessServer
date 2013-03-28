@@ -1,4 +1,4 @@
-package com.ncsu.edu.utils;
+package com.ncsu.edu.spinningwellness.utils;
 
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.Key;

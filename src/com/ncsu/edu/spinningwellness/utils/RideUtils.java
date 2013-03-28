@@ -1,4 +1,4 @@
-package com.ncsu.edu.utils;
+package com.ncsu.edu.spinningwellness.utils;
 
 import java.util.ArrayList;
 import java.util.List;
