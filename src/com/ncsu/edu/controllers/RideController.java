@@ -1,6 +1,7 @@
 package com.ncsu.edu.controllers;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -21,6 +22,7 @@ import com.google.appengine.api.datastore.FetchOptions;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.api.datastore.Query;
+import com.google.appengine.api.datastore.Query.CompositeFilterOperator;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.ncsu.edu.entities.Ride;
@@ -30,7 +32,7 @@ import com.ncsu.edu.utils.UserUtils;
 @Path("/l2wride/")
 public class RideController {
 
-	/*
+	/**
 	 * create ride
 	 * update ride
 	 * delete ride
@@ -47,12 +49,6 @@ public class RideController {
 	 * 
 	 */
 
-//	@GET
-//	@Produces(MediaType.TEXT_PLAIN)
-//	@Path("/myride") 
-//	public String myRide(){
-//		return "Prajakta";
-//	}
 	/**
 	 * Creates a ride in datastore.
 	 * Before creating the ride, a check is added to make sure that the ride with same id is not present in the datastore already.
@@ -199,8 +195,38 @@ public class RideController {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/viewpastridesfromlastweek") 
 	public List<Ride> viewPastRidesFromLastWeek() {
-		List<Ride> list = new ArrayList<Ride>();
-		return list;
+		List<Ride> rides = new ArrayList<Ride>();
+
+		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+
+		Date today = new Date();
+
+		Query query = new Query("Ride");
+		Filter startTimeFilterLessThan = new Query.FilterPredicate("startTime", FilterOperator.LESS_THAN, today);
+		
+		Calendar cal = Calendar.getInstance();  
+		cal.setTime(today);  
+		cal.add(Calendar.DATE, -7);  
+		today = cal.getTime();  		
+		Filter startTimeFilterGreaterThan = new Query.FilterPredicate("startTime", FilterOperator.GREATER_THAN, today);
+
+		Filter activityDateRangeFilter = CompositeFilterOperator.and(startTimeFilterLessThan, startTimeFilterGreaterThan);
+		query.setFilter(activityDateRangeFilter);
+
+		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
+		for(Entity result : results) {
+
+			String id = (String) result.getProperty("id");
+			String name = (String) result.getProperty("name");
+			String source = (String) result.getProperty("source");
+			String dest = (String) result.getProperty("destination");
+			String creator = (String) result.getProperty("creator");
+			Date startTime = (Date) result.getProperty("startTime");
+
+			Ride r = new Ride(id, name, source, dest, startTime, creator);
+			rides.add(r);
+		}
+		return rides;
 	}
 
 	/**
@@ -252,8 +278,38 @@ public class RideController {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/viewupcomingridesfromnextweek") 
 	public List<Ride> viewUpcomingRidesFromNextWeek() {
-		List<Ride> list = new ArrayList<Ride>();
-		return list;
+		List<Ride> rides = new ArrayList<Ride>();
+
+		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+
+		Date today = new Date();
+
+		Query query = new Query("Ride");
+		Filter startTimeFilterLessThan = new Query.FilterPredicate("startTime", FilterOperator.LESS_THAN, today);
+		
+		Calendar cal = Calendar.getInstance();  
+		cal.setTime(today);
+		cal.add(Calendar.DATE, 7);
+		today = cal.getTime();
+		Filter startTimeFilterGreaterThan = new Query.FilterPredicate("startTime", FilterOperator.GREATER_THAN, today);
+
+		Filter activityDateRangeFilter = CompositeFilterOperator.and(startTimeFilterLessThan, startTimeFilterGreaterThan);
+		query.setFilter(activityDateRangeFilter);
+
+		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
+		for(Entity result : results) {
+
+			String id = (String) result.getProperty("id");
+			String name = (String) result.getProperty("name");
+			String source = (String) result.getProperty("source");
+			String dest = (String) result.getProperty("destination");
+			String creator = (String) result.getProperty("creator");
+			Date startTime = (Date) result.getProperty("startTime");
+
+			Ride r = new Ride(id, name, source, dest, startTime, creator);
+			rides.add(r);
+		}
+		return rides;
 	}
 
 	/**

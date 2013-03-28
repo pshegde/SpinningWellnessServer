@@ -8,6 +8,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 public class UserActivity {
 	
 	String id;
+	String rideId;
 	String userName;
 	double distaceCovered;
 	double cadence;
@@ -17,10 +18,11 @@ public class UserActivity {
 	
 	public UserActivity() {}
 
-	public UserActivity(String id, String userName, double distaceCovered,
+	public UserActivity(String id, String rideId, String userName, double distaceCovered,
 			double cadence, double averageSpeed, double caloriesBurned, Date activityDate) {
 		super();
 		this.id = id;
+		this.rideId = rideId;
 		this.userName = userName;
 		this.distaceCovered = distaceCovered;
 		this.cadence = cadence;
@@ -33,8 +35,16 @@ public class UserActivity {
 		return id;
 	}
 
-	public void setRideId(String id) {
+	public void setId(String id) {
 		this.id = id;
+	}
+
+	public String getRideId() {
+		return rideId;
+	}
+
+	public void setRideId(String rideId) {
+		this.rideId = rideId;
 	}
 
 	public String getUserName() {
