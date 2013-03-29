@@ -7,6 +7,7 @@ import java.util.List;
 
 import javax.ws.rs.GET;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -25,16 +26,18 @@ import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.Query.CompositeFilterOperator;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
+import com.ncsu.edu.spinningwellness.entities.Participant;
 import com.ncsu.edu.spinningwellness.entities.Ride;
 import com.ncsu.edu.spinningwellness.utils.RideUtils;
 import com.ncsu.edu.spinningwellness.utils.UserUtils;
+import com.ncsu.edu.spinningwellness.utils.Utils;
 
 @Path("/l2wride/")
 public class RideController {
 
 	/**
 	 * create ride
-	 * update ride
+	 * upString ride
 	 * delete ride
 	 * view ride
 	 * 
@@ -52,12 +55,14 @@ public class RideController {
 	/**
 	 * Creates a ride in datastore.
 	 * Before creating the ride, a check is added to make sure that the ride with same id is not present in the datastore already.
+	 * After the ride is successfully created, an entry for ride, creator is added in participants table
 	 *
 	 * @param  	ride 	the ride object which is to be persisted in the datastore.
 	 * 
 	 * @return			a string stating the status of the operation either success or failure with appropriate message.
 	 */
 	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.TEXT_PLAIN)
 	@Path("/createride") 
 	public String createRide(Ride ride){
@@ -80,6 +85,8 @@ public class RideController {
 				dbRide.setProperty("startTime", ride.getStartTime());
 
 				ds.put(dbRide);
+				
+				addParticipantToRide(new Participant(((Long)(Long.parseLong(ride.getId())+1)).toString(), ride.getId(), ride.getCreator()));
 
 				return "Success";
 			} else {
@@ -89,16 +96,17 @@ public class RideController {
 	}
 
 	/**
-	 * Updates the ride given by the provided id.
+	 * UpStrings the ride given by the provided id.
 	 * Before updating the ride, a check is made to make sure that the ride actually exists in the datastore before updating its parameters.
 	 *
-	 * @param  	id  	id of the ride which is to be updated.
+	 * @param  	id  	id of the ride which is to be upStringd.
 	 * @param	ride	a new ride object which is to be used for replacing the old ride entity given by id.
 	 * @return			a string stating the status of the operation either success or failure with appropriate message.
 	 */
 	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.TEXT_PLAIN)
-	@Path("/updateride/{id}") 
+	@Path("/upStringride/{id}") 
 	public String updateRide(@PathParam("id") String id, Ride ride){
 
 		Entity persistedRide = RideUtils.getSingleRide(id);
@@ -135,7 +143,8 @@ public class RideController {
 	 * @return			a string stating the status of the operation either success or failure with appropriate message.
 	 */
 	@DELETE
-	@Path("/deleteride/{id}/")
+	@Produces(MediaType.TEXT_PLAIN)
+	@Path("/deleteride/{id}")	
 	public String deleteRide(@PathParam("id") String id) {
 
 		Entity persistedRide = RideUtils.getSingleRide(id);
@@ -164,7 +173,8 @@ public class RideController {
 	 * @return				ride object from datastore identified by id.
 	 */
 	@GET
-	@Path("/viewride/{id}/")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Path("/viewride/{id}")
 	public Ride viewRide(@PathParam("id") String id) {
 
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
@@ -175,8 +185,9 @@ public class RideController {
 			String name = (String) dbRide.getProperty("name");
 			String source = (String) dbRide.getProperty("source");
 			String dest = (String) dbRide.getProperty("destination");
-			String creator = (String) dbRide.getProperty("creator");
-			Date startTime = (Date) dbRide.getProperty("startTime");
+			Key creatorKey = (Key) dbRide.getProperty("creator");
+			String creator = creatorKey.getName();
+			long startTime = (Long) dbRide.getProperty("startTime");
 
 			Ride ride = new Ride(id, name, source, dest, startTime, creator);
 			return ride;
@@ -202,16 +213,16 @@ public class RideController {
 		Date today = new Date();
 
 		Query query = new Query("Ride");
-		Filter startTimeFilterLessThan = new Query.FilterPredicate("startTime", FilterOperator.LESS_THAN, today);
+		Filter startTimeFilterLessThan = new Query.FilterPredicate("startTime", FilterOperator.LESS_THAN_OR_EQUAL, Utils.convertDateToString(today));
 		
 		Calendar cal = Calendar.getInstance();  
 		cal.setTime(today);  
 		cal.add(Calendar.DATE, -7);  
 		today = cal.getTime();  		
-		Filter startTimeFilterGreaterThan = new Query.FilterPredicate("startTime", FilterOperator.GREATER_THAN, today);
+		Filter startTimeFilterGreaterThan = new Query.FilterPredicate("startTime", FilterOperator.GREATER_THAN_OR_EQUAL, Utils.convertDateToString(today));
 
-		Filter activityDateRangeFilter = CompositeFilterOperator.and(startTimeFilterLessThan, startTimeFilterGreaterThan);
-		query.setFilter(activityDateRangeFilter);
+		Filter activityStringRangeFilter = CompositeFilterOperator.and(startTimeFilterLessThan, startTimeFilterGreaterThan);
+		query.setFilter(activityStringRangeFilter);
 
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		for(Entity result : results) {
@@ -220,8 +231,9 @@ public class RideController {
 			String name = (String) result.getProperty("name");
 			String source = (String) result.getProperty("source");
 			String dest = (String) result.getProperty("destination");
-			String creator = (String) result.getProperty("creator");
-			Date startTime = (Date) result.getProperty("startTime");
+			Key creatorKey = (Key) result.getProperty("creator");
+			String creator = creatorKey.getName();
+			long startTime = (Long) result.getProperty("startTime");
 
 			Ride r = new Ride(id, name, source, dest, startTime, creator);
 			rides.add(r);
@@ -245,11 +257,11 @@ public class RideController {
 
 		Date today = new Date();
 
+		System.out.println(Utils.convertDateToString(today));
+		
 		Query query = new Query("Ride");
 		Filter startTimeFilter =
-				new Query.FilterPredicate("startTime",
-						FilterOperator.LESS_THAN,
-						today);
+				new Query.FilterPredicate("startTime", FilterOperator.LESS_THAN_OR_EQUAL, Utils.convertDateToString(today));
 
 		query.setFilter(startTimeFilter);
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
@@ -260,8 +272,9 @@ public class RideController {
 			String name = (String) result.getProperty("name");
 			String source = (String) result.getProperty("source");
 			String dest = (String) result.getProperty("destination");
-			String creator = (String) result.getProperty("creator");
-			Date startTime = (Date) result.getProperty("startTime");
+			Key creatorKey = (Key) result.getProperty("creator");
+			String creator = creatorKey.getName();
+			long startTime = (Long) result.getProperty("startTime");
 
 			Ride r = new Ride(id, name, source, dest, startTime, creator);
 			rides.add(r);
@@ -285,16 +298,16 @@ public class RideController {
 		Date today = new Date();
 
 		Query query = new Query("Ride");
-		Filter startTimeFilterLessThan = new Query.FilterPredicate("startTime", FilterOperator.LESS_THAN, today);
+		Filter startTimeFilterGreaterThan = new Query.FilterPredicate("startTime", FilterOperator.GREATER_THAN_OR_EQUAL, Utils.convertDateToString(today));
 		
 		Calendar cal = Calendar.getInstance();  
 		cal.setTime(today);
 		cal.add(Calendar.DATE, 7);
 		today = cal.getTime();
-		Filter startTimeFilterGreaterThan = new Query.FilterPredicate("startTime", FilterOperator.GREATER_THAN, today);
+		Filter startTimeFilterLessThan = new Query.FilterPredicate("startTime", FilterOperator.LESS_THAN_OR_EQUAL, Utils.convertDateToString(today));
 
-		Filter activityDateRangeFilter = CompositeFilterOperator.and(startTimeFilterLessThan, startTimeFilterGreaterThan);
-		query.setFilter(activityDateRangeFilter);
+		Filter activityStringRangeFilter = CompositeFilterOperator.and(startTimeFilterLessThan, startTimeFilterGreaterThan);
+		query.setFilter(activityStringRangeFilter);
 
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		for(Entity result : results) {
@@ -303,8 +316,9 @@ public class RideController {
 			String name = (String) result.getProperty("name");
 			String source = (String) result.getProperty("source");
 			String dest = (String) result.getProperty("destination");
-			String creator = (String) result.getProperty("creator");
-			Date startTime = (Date) result.getProperty("startTime");
+			Key creatorKey = (Key) result.getProperty("creator");
+			String creator = creatorKey.getName();
+			long startTime = (Long) result.getProperty("startTime");
 
 			Ride r = new Ride(id, name, source, dest, startTime, creator);
 			rides.add(r);
@@ -328,10 +342,7 @@ public class RideController {
 		Date today = new Date();
 
 		Query query = new Query("Ride");
-		Filter startTimeFilter =
-				new Query.FilterPredicate("startTime",
-						FilterOperator.GREATER_THAN,
-						today);
+		Filter startTimeFilter = new Query.FilterPredicate("startTime", FilterOperator.GREATER_THAN_OR_EQUAL, Utils.convertDateToString(today));
 
 		query.setFilter(startTimeFilter);
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
@@ -342,8 +353,9 @@ public class RideController {
 			String name = (String) result.getProperty("name");
 			String source = (String) result.getProperty("source");
 			String dest = (String) result.getProperty("destination");
-			String creator = (String) result.getProperty("creator");
-			Date startTime = (Date) result.getProperty("startTime");
+			Key creatorKey = (Key) result.getProperty("creator");
+			String creator = creatorKey.getName();
+			long startTime = (Long) result.getProperty("startTime");
 
 			Ride r = new Ride(id, name, source, dest, startTime, creator);
 			rides.add(r);
@@ -358,30 +370,31 @@ public class RideController {
 	 * A check is performed to make sure that the same rideId, userName combination is not already registered as the participant. 
 	 * Before deleting the ride from database, the method deletes all the participants for the ride.
 	 *
-	 * @param  rideId  		id of the ride for which the participant is to be added.
-	 * @param  userName		name of the user which is to be added as participant.
+	 * @param  participant  participant object which is to be persisted in the database.
 	 * 
-	 * @return		a string stating the status of the operation either success or failure with appropriate message.
+	 * @return				a string stating the status of the operation either success or failure with appropriate message.
 	 */
 	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.TEXT_PLAIN)
-	@Path("/addparticipanttoride/{id}/{name}") 
-	public String addParticipantToRide(@PathParam("id") String rideId, @PathParam("name") String userName){
+	@Path("/addparticipanttoride") 
+	public String addParticipantToRide(Participant participant){
 
-		Entity persistedRide = RideUtils.getSingleRide(rideId);
+		Entity persistedRide = RideUtils.getSingleRide(participant.getRideId());
 		if(persistedRide != null) {
-			Entity persistedUser = UserUtils.getSingleUser(userName);
+			Entity persistedUser = UserUtils.getSingleUser(participant.getUserName());
 			if(persistedUser != null) {
 
-				Key participantKey = RideUtils.getSingleParticipant(rideId, userName);
-				if(participantKey != null) {
+				Entity persistedParticipant = RideUtils.getSingleParticipant(participant.getRideId(), participant.getUserName());
+				if(persistedParticipant != null) {
 					return "Failure: Participant already exists";
 				} else {
 					DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 					Entity dbParticipant = new Entity("Participant");
-					dbParticipant.setProperty("rideId", rideId);
-					dbParticipant.setProperty("userName", userName);
+					dbParticipant.setProperty("id", participant.getId());
+					dbParticipant.setProperty("rideId", persistedRide.getKey());
+					dbParticipant.setProperty("userName", persistedUser.getKey());
 
 					ds.put(dbParticipant);
 
@@ -397,7 +410,7 @@ public class RideController {
 
 	/**
 	 * Removes the participant from the ride.
-	 * A check is performed to make sure tha the given particiapnt indicated by rideId and userName pair actually exists in the
+	 * A check is performed to make sure that the given participant indicated by rideId and userName pair actually exists in the
 	 * database before deleting it.
 	 *
 	 * @param  rideId  		id of the ride of the participant to be deleted.
@@ -405,31 +418,48 @@ public class RideController {
 	 * 
 	 * @return		a string stating the status of the operation either success or failure with appropriate message.
 	 */
-	@POST
+	@DELETE
 	@Produces(MediaType.TEXT_PLAIN)
-	@Path("/removeparticipanttoride/{id}/{name}") 
+	@Path("/removeparticipanttoride/{id}/{name}")
 	public String removeParticipantFromRide(@PathParam("id") String rideId, @PathParam("name") String userName){
 
-
-		Entity persistedRide = RideUtils.getSingleRide(rideId);
-		if(persistedRide != null) {
-			Entity persistedUser = UserUtils.getSingleUser(userName);
-			if(persistedUser != null) {
+		Entity persistedParticipant = RideUtils.getSingleParticipant(rideId, userName);
+		if(persistedParticipant != null) {
 
 				DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
-
-				Entity dbParticipant = new Entity("Participant");
-				dbParticipant.setProperty("rideId", rideId);
-				dbParticipant.setProperty("userName", userName);
-
-				ds.put(dbParticipant);
+				ds.delete(persistedParticipant.getKey());
 
 				return "Success";
-			} else {
-				return "Failure: Invalid user name";
-			}
 		} else {
-			return "Failure: Invalid ride id";
+			return "Failure: Invalid participant info";
 		}
+	}
+
+	/**
+	 * Returns all the participants for the ride.
+	 *
+	 * @return		a list of participant objects for a given ride.
+	 */
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	@Path("/viewparticipantsforride/{id}") 
+	public List<Participant> viewParticipantsForRide(@PathParam("id") String rideId) {
+		List<Participant> participants = new ArrayList<Participant>();
+
+		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+
+		Query query = new Query("Participant");
+		Filter rideIdFilter = new Query.FilterPredicate("rideId", FilterOperator.EQUAL, KeyFactory.createKey("Ride", rideId));
+		query.setFilter(rideIdFilter);
+
+		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
+		for(Entity result : results) {
+
+			String id = (String) result.getProperty("id");
+			String userName = ((Key) result.getProperty("userName")).getName();
+
+			participants.add(new Participant(id, rideId, userName));
+		}
+		return participants;
 	}
 }

@@ -11,6 +11,7 @@ import java.util.Map.Entry;
 
 import javax.ws.rs.GET;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -68,9 +69,10 @@ public class UserController {
 	 * @return			a string stating the status of the operation either success or failure with appropriate message.
 	 */
 	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.TEXT_PLAIN)
 	@Path("/createuser") 
-	public String  createUser(User user){
+	public String createUser(User user){
 
 		Entity persistedUser = UserUtils.getSingleUser(user.getName());
 		if(persistedUser != null) {
@@ -104,11 +106,13 @@ public class UserController {
 			return "Failure: User does not exist";
 		} else {
 
+			//TODO: Delete all the rides for which this user was the creator
+			
 			//Deleting all the participant entries with this user name
 			RideController rc = new RideController();
-			List<String> rides = RideUtils.getAllParticipantsByUserName(name);
-			for(String ride : rides) {
-				rc.removeParticipantFromRide(ride, name);
+			List<String> rideIDs = RideUtils.getAllParticipantsByUserName(name);
+			for(String rideId : rideIDs) {
+				rc.removeParticipantFromRide(rideId, name);
 			}
 
 			//TODO: Delete all the user activity logs with this user name
@@ -129,13 +133,14 @@ public class UserController {
 	 * @return				a string stating the status of the operation either success or failure with appropriate message.
 	 */
 	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.TEXT_PLAIN)
 	@Path("/loguseractivity") 
 	public String logUserActivity(UserActivity activity) {
 
-		Entity persistedActivity = UserUtils.getSingleUserActivity(activity.getId());
+		Entity persistedActivity = UserUtils.getSingleUserActivity(activity.getRideId(), activity.getUserName());
 		if(persistedActivity != null) {
-			return "Failure: Duplicate activity id";
+			return "Failure: Duplicate activity";
 		} else {
 
 			Entity persistedUser = UserUtils.getSingleUser(activity.getUserName());
@@ -148,8 +153,8 @@ public class UserController {
 
 					Entity dbUserActicity = new Entity("UserActivity", activity.getId());
 					dbUserActicity.setProperty("id", activity.getId());
-					dbUserActicity.setProperty("rideId", activity.getRideId());
-					dbUserActicity.setProperty("userName", activity.getUserName());
+					dbUserActicity.setProperty("rideId", persistedRide.getKey());
+					dbUserActicity.setProperty("userName", persistedUser.getKey());
 					dbUserActicity.setProperty("distanceCovered", activity.getDistaceCovered());
 					dbUserActicity.setProperty("caloriesBurned", activity.getCaloriesBurned());
 					dbUserActicity.setProperty("cadence", activity.getCadence());
@@ -185,32 +190,35 @@ public class UserController {
 
 		Query query = new Query("UserActivity");
 
+		//filter for start date
 		Date today = new Date();	  
 		Filter activityDateFilterLessThan = new Query.FilterPredicate("activityDate", FilterOperator.LESS_THAN, today);
 
+		//filter for end date
 		Calendar cal = Calendar.getInstance();  
 		cal.setTime(today);  
 		cal.add(Calendar.DATE, -7);  
 		today = cal.getTime();  		
 		Filter activityDateFilterGreaterThan = new Query.FilterPredicate("activityDate", FilterOperator.GREATER_THAN, today);
 
-		Filter activityDateRangeFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityDateFilterGreaterThan);
-		query.setFilter(activityDateRangeFilter);
+		//Filter for user name
+		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
 
-		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, name);
-		query.setFilter(activityUserFilter);
+		//complete composite filter
+		Filter activityDateRangeFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityDateFilterGreaterThan, activityUserFilter);
+		query.setFilter(activityDateRangeFilter);
 
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		for(Entity result: results) {
 
 			String id = (String) result.getProperty("id");
-			String rideId = (String) result.getProperty("rideId");
-			String userName = (String) result.getProperty("userName");
+			String rideId = ((Key) result.getProperty("rideId")).getName();
+			String userName = ((Key) result.getProperty("userName")).getName();
 			double distanceCovered = (Double) result.getProperty("distanceCovered");
 			double caloriesBurned = (Double) result.getProperty("caloriesBurned");
 			double cadence = (Double) result.getProperty("cadence");
 			double averageSpeed = (Double) result.getProperty("averageSpeed");
-			Date activityDate = (Date) result.getProperty("activityDate");
+			long activityDate = (Long) result.getProperty("activityDate");
 
 			UserActivity ua = new UserActivity(id, rideId, userName, distanceCovered, cadence, averageSpeed, caloriesBurned, activityDate);
 			userActivities.add(ua);
@@ -236,24 +244,28 @@ public class UserController {
 
 		Query query = new Query("UserActivity");
 
+		//Filter for end date
 		Date today = new Date();
 		Filter activityDateFilter = new Query.FilterPredicate("activityDate", FilterOperator.LESS_THAN, today);
-		query.setFilter(activityDateFilter);
 
-		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, name);
-		query.setFilter(activityUserFilter);
+		//Filter for user name
+		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
+
+		//complete composite filter
+		Filter activityFilter = CompositeFilterOperator.and(activityDateFilter, activityUserFilter);
+		query.setFilter(activityFilter);
 
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		for(Entity result: results) {
 
 			String id = (String) result.getProperty("id");
-			String rideId = (String) result.getProperty("rideId");
-			String userName = (String) result.getProperty("userName");
+			String rideId = ((Key) result.getProperty("rideId")).getName();
+			String userName = ((Key) result.getProperty("userName")).getName();
 			double distanceCovered = (Double) result.getProperty("distanceCovered");
 			double caloriesBurned = (Double) result.getProperty("caloriesBurned");
 			double cadence = (Double) result.getProperty("cadence");
 			double averageSpeed = (Double) result.getProperty("averageSpeed");
-			Date activityDate = (Date) result.getProperty("activityDate");
+			long activityDate = (Long) result.getProperty("activityDate");
 
 			UserActivity ua = new UserActivity(id, rideId, userName, distanceCovered, cadence, averageSpeed, caloriesBurned, activityDate);
 			userActivities.add(ua);
@@ -271,39 +283,42 @@ public class UserController {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/workoutdetailsforlastweek/{name}") 
-	public Map<String, Double>  getWorkoutDetailsForLastWeek(@PathParam("name") String userName) {
+	public Map<String, Double> getWorkoutDetailsForLastWeek(@PathParam("name") String name) {
 		Map<String, Double> workoutDetails = new HashMap<String, Double>();
-		
+
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 		Query query = new Query("UserActivity");
 
+		//Filter for end date
 		Date today = new Date();	  
 		Filter activityDateFilterLessThan = new Query.FilterPredicate("activityDate", FilterOperator.LESS_THAN, today);
-		
+
+		//Filter for start date
 		Calendar cal = Calendar.getInstance();  
 		cal.setTime(today);  
 		cal.add(Calendar.DATE, -7);  
 		today = cal.getTime();  		
 		Filter activityDateFilterGreaterThan = new Query.FilterPredicate("activityDate", FilterOperator.GREATER_THAN, today);
 
-		Filter activityDateRangeFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityDateFilterGreaterThan);
-		query.setFilter(activityDateRangeFilter);
+		//Filter for user name
+		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
 
-		Filter userNameFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, userName);
-		query.setFilter(userNameFilter);
-		
+		//complete composite filter
+		Filter activityFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityDateFilterGreaterThan, activityUserFilter);
+		query.setFilter(activityFilter);
+
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		Double totalDistanceCovered = 0.0, totalCaloriesBurned = 0.0;
 		for(Entity result: results) {
-				
+
 			totalDistanceCovered += (Double) result.getProperty("distanceCovered");
 			totalCaloriesBurned += (Double) result.getProperty("caloriesBurned");
 		}
-		
+
 		workoutDetails.put("TotalDistanceCovered", totalDistanceCovered);
 		workoutDetails.put("TotalCaloriesBurned", totalCaloriesBurned);
-		
+
 		return workoutDetails;
 	}
 
@@ -317,31 +332,35 @@ public class UserController {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/workoutdetails/{name}") 
-	public Map<String, Double>  getWorkoutDetails(@PathParam("name") String userName) {
+	public Map<String, Double>  getWorkoutDetails(@PathParam("name") String name) {
 		Map<String, Double> workoutDetails = new HashMap<String, Double>();
-		
+
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 		Query query = new Query("UserActivity");
 
+		//Filter for end date
 		Date today = new Date();	  
 		Filter activityDateFilterLessThan = new Query.FilterPredicate("activityDate", FilterOperator.LESS_THAN, today);		
-		query.setFilter(activityDateFilterLessThan);
 
-		Filter userNameFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, userName);
-		query.setFilter(userNameFilter);
-		
+		//Filter for user name
+		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
+
+		//complete composite filter
+		Filter activityFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityUserFilter);
+		query.setFilter(activityFilter);
+
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		Double totalDistanceCovered = 0.0, totalCaloriesBurned = 0.0;
 		for(Entity result: results) {
-				
+
 			totalDistanceCovered += (Double) result.getProperty("distanceCovered");
 			totalCaloriesBurned += (Double) result.getProperty("caloriesBurned");
 		}
-		
+
 		workoutDetails.put("TotalDistanceCovered", totalDistanceCovered);
 		workoutDetails.put("TotalCaloriesBurned", totalCaloriesBurned);
-		
+
 		return workoutDetails;
 	}
 
@@ -355,30 +374,34 @@ public class UserController {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/mybestrideforlastweek/{name}") 
-	public Ride getPersonalBestRideForLastWeek(@PathParam("name") String userName) {
+	public Ride getPersonalBestRideForLastWeek(@PathParam("name") String name) {
 		Ride r = null;
-		
+
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 		Query query = new Query("UserActivity");
 
+		//End date filter
 		Date today = new Date();	  
 		Filter activityDateFilterLessThan = new Query.FilterPredicate("activityDate", FilterOperator.LESS_THAN, today);
-		
+
+		//Start date filter
 		Calendar cal = Calendar.getInstance();  
 		cal.setTime(today);  
 		cal.add(Calendar.DATE, -7);  
 		today = cal.getTime();  		
 		Filter activityDateFilterGreaterThan = new Query.FilterPredicate("activityDate", FilterOperator.GREATER_THAN, today);
 
-		Filter activityDateRangeFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityDateFilterGreaterThan);
-		query.setFilter(activityDateRangeFilter);
+		//User name filter
+		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
 
-		Filter userNameFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, userName);
-		query.setFilter(userNameFilter);
+		//complete composite filter
+		Filter activityFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityDateFilterGreaterThan, activityUserFilter);
+		query.setFilter(activityFilter);
 
+		//Setting the soring order
 		query.addSort("distanceCovered", SortDirection.DESCENDING);
-		
+
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());		
 		if(results.size()>0) {			
 			String rideId = (String) results.get(0).getProperty("rideId");
@@ -398,22 +421,27 @@ public class UserController {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/mybestride/{name}") 
-	public Ride getPersonalBestRide(@PathParam("name") String userName) {
+	public Ride getPersonalBestRide(@PathParam("name") String name) {
 		Ride r = null;
-		
+
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 		Query query = new Query("UserActivity");
 
+		//End date filter
 		Date today = new Date();	  
 		Filter activityDateFilterLessThan = new Query.FilterPredicate("activityDate", FilterOperator.LESS_THAN, today);
-		query.setFilter(activityDateFilterLessThan);
-		
-		Filter userNameFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, userName);
-		query.setFilter(userNameFilter);
 
+		//User filter
+		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
+
+		//complete composite filter
+		Filter activityFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityUserFilter);
+		query.setFilter(activityFilter);
+
+		//Setting the sort order
 		query.addSort("distanceCovered", SortDirection.DESCENDING);
-		
+
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());		
 		if(results.size()>0) {			
 			String rideId = (String) results.get(0).getProperty("rideId");
@@ -433,30 +461,31 @@ public class UserController {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/mypastridesfromlastweek/{name}") 
-	public List<Ride> getMyPastRidesFromLastWeek(@PathParam("name") String userName) {
+	public List<Ride> getMyPastRidesFromLastWeek(@PathParam("name") String name) {
 		List<Ride> rides = new ArrayList<Ride>();
-		
+
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 		Query query = new Query("UserActivity");
 
+		//End date filter
 		Date today = new Date();	  
 		Filter activityDateFilterLessThan = new Query.FilterPredicate("activityDate", FilterOperator.LESS_THAN, today);
-		
+
+		//Start date filter
 		Calendar cal = Calendar.getInstance();  
 		cal.setTime(today);  
 		cal.add(Calendar.DATE, -7);  
 		today = cal.getTime();  		
 		Filter activityDateFilterGreaterThan = new Query.FilterPredicate("activityDate", FilterOperator.GREATER_THAN, today);
 
-		Filter activityDateRangeFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityDateFilterGreaterThan);
-		query.setFilter(activityDateRangeFilter);
+		//user name filter
+		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
 
-		Filter userNameFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, userName);
-		query.setFilter(userNameFilter);
+		//complete composite filter
+		Filter activityFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityDateFilterGreaterThan, activityUserFilter);
+		query.setFilter(activityFilter);
 
-		query.addSort("distanceCovered", SortDirection.DESCENDING);
-		
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());		
 		for(Entity result: results) {	
 			String rideId = (String) result.getProperty("rideId");
@@ -476,22 +505,24 @@ public class UserController {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	@Path("/mypastrides/{name}") 
-	public List<Ride> getMyPastRides(@PathParam("name") String userName) {
+	public List<Ride> getMyPastRides(@PathParam("name") String name) {
 		List<Ride> rides = new ArrayList<Ride>();
-		
+
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 		Query query = new Query("UserActivity");
 
+		//End date filter
 		Date today = new Date();	  
 		Filter activityDateFilterLessThan = new Query.FilterPredicate("activityDate", FilterOperator.LESS_THAN, today);		
-		query.setFilter(activityDateFilterLessThan);
 
-		Filter userNameFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, userName);
-		query.setFilter(userNameFilter);
+		//User name filter
+		Filter activityUserFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
 
-		query.addSort("distanceCovered", SortDirection.DESCENDING);
-		
+		//complete composite filter
+		Filter activityFilter = CompositeFilterOperator.and(activityDateFilterLessThan, activityUserFilter);
+		query.setFilter(activityFilter);
+
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());		
 		for(Entity result: results) {	
 			String rideId = (String) result.getProperty("rideId");
@@ -532,11 +563,11 @@ public class UserController {
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		for(Entity result: results) {
 
-			String userName = (String) result.getProperty("userName");
+			String userName = ((Key) result.getProperty("userName")).getName();
 			Double distanceCovered = (Double) result.getProperty("distanceCovered");
 			userDistanceCovered.put(userName, (Double) ((Double) (userDistanceCovered.get(userName)) + distanceCovered));
 		}
-		
+
 		Map<String, Double> sortedMap = Utils.sortMapOnValues(userDistanceCovered);
 
 		List list = new LinkedList(sortedMap.entrySet());		
@@ -544,7 +575,7 @@ public class UserController {
 			Map.Entry entry = (Entry) list.get(i);
 			users.add(new User((String) entry.getKey()));
 		}
-		
+
 		return users;		
 	}
 
@@ -571,11 +602,11 @@ public class UserController {
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		for(Entity result: results) {
 
-			String userName = (String) result.getProperty("userName");
+			String userName = ((Key) result.getProperty("userName")).getName();
 			Double distanceCovered = (Double) result.getProperty("distanceCovered");
 			userDistanceCovered.put(userName, (Double) ((Double) (userDistanceCovered.get(userName)) + distanceCovered));
 		}
-		
+
 		Map<String, Double> sortedMap = Utils.sortMapOnValues(userDistanceCovered);
 
 		List list = new LinkedList(sortedMap.entrySet());		

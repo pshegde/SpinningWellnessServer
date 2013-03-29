@@ -1,7 +1,5 @@
 package com.ncsu.edu.spinningwellness.entities;
 
-import java.util.Date;
-
 import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
@@ -11,13 +9,13 @@ public class Ride {
 	String name;
 	String source;
 	String dest;
-	Date startTime;
+	long startTime;
 	String creator;
 	
 	public Ride() {}
 
 	public Ride(String id, String name, String source, String dest,
-			Date startTime, String creator) {
+			long startTime, String creator) {
 		super();
 		this.id = id;
 		this.name = name;
@@ -59,11 +57,11 @@ public class Ride {
 		this.dest = dest;
 	}
 
-	public Date getStartTime() {
+	public long getStartTime() {
 		return startTime;
 	}
 
-	public void setStartTime(Date startTime) {
+	public void setStartTime(long startTime) {
 		this.startTime = startTime;
 	}
 

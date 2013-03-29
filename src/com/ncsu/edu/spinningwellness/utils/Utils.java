@@ -1,7 +1,10 @@
 package com.ncsu.edu.spinningwellness.utils;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -72,5 +75,21 @@ public class Utils {
 			System.out.println("Key : " + entry.getKey() 
 					+ " Value : " + entry.getValue());
 		}
+	}
+
+	public static long convertDateToString(Date date) {
+
+		SimpleDateFormat df = new SimpleDateFormat("yyMMddHHmmss");
+		return Long.parseLong(df.format(date));
+	}
+
+	public static Date convertStringToDate(Long date) {
+		SimpleDateFormat df = new SimpleDateFormat("yyMMddHHmmss");
+		try {
+			return df.parse(date.toString());
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 }

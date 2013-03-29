@@ -14,12 +14,12 @@ public class UserActivity {
 	double cadence;
 	double averageSpeed;
 	double caloriesBurned;
-	Date activityDate;
+	long activityDate;
 	
 	public UserActivity() {}
 
 	public UserActivity(String id, String rideId, String userName, double distaceCovered,
-			double cadence, double averageSpeed, double caloriesBurned, Date activityDate) {
+			double cadence, double averageSpeed, double caloriesBurned, long activityDate) {
 		super();
 		this.id = id;
 		this.rideId = rideId;
@@ -87,11 +87,11 @@ public class UserActivity {
 		this.caloriesBurned = caloriesBurned;
 	}
 	
-	public Date getActivityDate() {
+	public long getActivityDate() {
 		return activityDate;
 	}
 
-	public void setActivityDate(Date activityDate) {
+	public void setActivityDate(long activityDate) {
 		this.activityDate = activityDate;
 	}
 }

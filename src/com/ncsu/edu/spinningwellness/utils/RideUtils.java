@@ -10,6 +10,7 @@ import com.google.appengine.api.datastore.FetchOptions;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.api.datastore.Query;
+import com.google.appengine.api.datastore.Query.CompositeFilterOperator;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 
@@ -20,20 +21,20 @@ public class RideUtils {
 		return Utils.findEntity(key);
 	}
 	
-	public static Key getSingleParticipant(String id, String name) {
+	public static Entity getSingleParticipant(String id, String name) {
 
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 		Query query = new Query("Participant");
-		Filter rideIdFilter = new Query.FilterPredicate("rideId", FilterOperator.EQUAL, id);
-		Filter userNameFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, name);
-		query.setFilter(rideIdFilter);
-		query.setFilter(userNameFilter);
 		
-		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
+		Filter rideIdFilter = new Query.FilterPredicate("rideId", FilterOperator.EQUAL, KeyFactory.createKey("Ride", id));
+		Filter userNameFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
+		Filter participantFilter = CompositeFilterOperator.and(rideIdFilter, userNameFilter);
+		query.setFilter(participantFilter);
 
+		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		if(results.size() == 1) {
-			return results.get(0).getKey();
+			return results.get(0);
 		} else {
 			return null;
 		}
@@ -46,30 +47,30 @@ public class RideUtils {
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 		Query query = new Query("Participant");
-		Filter rideIdFilter = new Query.FilterPredicate("rideId", FilterOperator.EQUAL, id);
+		Filter rideIdFilter = new Query.FilterPredicate("rideId", FilterOperator.EQUAL, KeyFactory.createKey("Ride", id));
 		query.setFilter(rideIdFilter);
 		
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		for(Entity result: results) {
-			users.add((String) result.getProperty("userName"));
+			users.add(((Key) result.getProperty("userName")).getName());
 		}
 		return users;
 	}
 	
 	public static List<String> getAllParticipantsByUserName(String name) {
 
-		List<String> users = new ArrayList<String>();
+		List<String> rideIDs = new ArrayList<String>();
 
 		DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
 
 		Query query = new Query("Participant");
-		Filter rideIdFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, name);
+		Filter rideIdFilter = new Query.FilterPredicate("userName", FilterOperator.EQUAL, KeyFactory.createKey("User", name));
 		query.setFilter(rideIdFilter);
 		
 		List<Entity> results = ds.prepare(query).asList(FetchOptions.Builder.withDefaults());
 		for(Entity result: results) {
-			users.add((String) result.getProperty("rideId"));
+			rideIDs.add(((Key) result.getProperty("rideId")).getName());
 		}
-		return users;
+		return rideIDs;
 	}
 }
